@@ -10,10 +10,10 @@ namespace intel
 
 class Device : public internal_power::Device
 {
-	Device();
-	double read_power() override;
+    Device();
+    double read_power() override;
 };
 
 std::vector<internal_power::Device> detect();
-}
-}
+} // namespace intel
+} // namespace internal_power
