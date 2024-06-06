@@ -20,18 +20,19 @@ namespace perf
 {
 class PerfCounter
 {
-	public:
-		PerfCounter(uint64_t type, uint64_t config, uint64_t config1, std::string name);
-		~PerfCounter();
-	protected:
-		int fd_;
+public:
+    PerfCounter(uint64_t type, uint64_t config, uint64_t config1, std::string name);
+    ~PerfCounter();
+
+protected:
+    int fd_;
 };
 
-class RaplAmdPkgCounter : public internal_energy::EnergyCounter, PerfCounter
+class RaplAmdPkgCounter : public PerfCounter
 {
-	public:
-		RaplAmdPkgCounter();
-		double read_energy() override;
+public:
+    RaplAmdPkgCounter();
+    double read_energy();
 };
 
 } // namespace perf
