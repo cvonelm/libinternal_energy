@@ -1,0 +1,3 @@
+[submodule "lib/perf-cpp"]
+	path = lib/perf-cpp
+	url = https://github.com/cvonelm/perf-cpp
