@@ -9,16 +9,18 @@ namespace internal_energy
 {
 namespace nvml
 {
-class NvmlEnergy : public EnergyCounter
+class NvmlEnergy
 {
 public:
     NvmlEnergy(nvmlDevice_t device) : device_(device)
     {
     }
-    double read_energy() override
+
+    template <>
+    double read<double>() override
     {
         uint64_t energy;
-        nvmlDeviceGetTotalEenrgyConsumption(device_, &energy);
+        nvmlDeviceGetTotalEnergyConsumption(device_, &energy);
         return energy;
     }
 
