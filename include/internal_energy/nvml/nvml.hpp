@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 extern "C"
 {
 #include <nvml.h>
@@ -7,36 +9,64 @@ extern "C"
 
 namespace internal_energy
 {
-namespace nvml
+namespace cuda
 {
-class NvmlEnergy
+class EventInstance : public internal_energy::EventInstance
 {
 public:
-    NvmlEnergy(nvmlDevice_t device) : device_(device)
+    EventInstance(CudaDevice dev, std::unique_ptr<internal_energy::EventSource>&& src)
+    : internal_energy::EventInstance(std::move(src)), dev_(dev)
     {
     }
-
-    template <>
-    double read<double>() override
+    double read() override
     {
-        uint64_t energy;
-        nvmlDeviceGetTotalEnergyConsumption(device_, &energy);
-        return energy;
-    }
-
-    static std::vector<NvmlEnergy> get_devices()
-    {
-        std::vector<NVmlEnergy> res;
-        nvmlDevice_t handle;
-        for (int i = 0; nvmlDeviceGetHandleByIndex_v2(i, &handle); i++)
-        {
-            res.emplace_back(handle);
-        }
-        return res;
+        long long unsigned int energy;
+        nvmlDeviceGetTotalEnergyConsumption(dev_.as_device_t(), &energy);
+        return energy / (1000.0d);
     }
 
 private:
-    nvmlDevice_t device_;
-}
-} // namespace nvml
+    CudaDevice dev_;
+};
+
+class EventSource : public internal_energy::EventSource
+{
+public:
+    EventSource()
+    {
+    }
+
+    std::unique_ptr<internal_energy::EventInstance> open(location_t location) override
+    {
+        std::unique_ptr<internal_energy::EventInstance> res;
+
+        std::visit(overloaded{ [&](CudaDevice dev)
+                               { res = std::make_unique<cuda::EventInstance>(dev, this->clone()); },
+                               [](auto arg) {} },
+                   location);
+        return res;
+    }
+
+    static std::vector<cuda::EventSource> get_all_events()
+    {
+        return { cuda::EventSource() };
+    }
+
+    Subsystem get_subsystem() const override
+    {
+        return Subsystem::CUDA;
+    }
+
+    std::string name() const override
+    {
+        return "CUDA::energy";
+    }
+
+    std::unique_ptr<internal_energy::EventSource> clone()
+    {
+        return std::make_unique<cuda::EventSource>();
+    }
+};
+
+} // namespace cuda
 } // namespace internal_energy

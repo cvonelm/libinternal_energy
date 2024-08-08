@@ -10,6 +10,7 @@ set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake;${CMAKE_MODULE_PATH}")
 
 find_package(VEDA)
 find_package(CUDAToolkit)
+find_package(Threads)
 
 if(NOT INTERNAL_POWER_POSITION_INDEPENDENT_CODE)
 	set(INTERNAL_POWER_POSITION_INDEPENDENT_CODE OFF)
@@ -23,15 +24,23 @@ add_feature_info("USE_NEC" USE_NEC "Use libveda to retrieve NEC Vector Engine en
 
 
 set(LIB_SRCS
-	src/energy.cpp)
+    src/perf.cpp
+    src/topology.cpp
+	src/energy.cpp
+    src/hwmon/hwmon.cpp)
+
 add_library(internal_energy ${LIB_SRCS})
 
-target_link_libraries(internal_energy perf-cpp)
+target_link_libraries(internal_energy PUBLIC perf-cpp)
+target_link_libraries(internal_energy PUBLIC Threads::Threads)
+target_link_libraries(internal_energy PUBLIC stdc++fs)
 target_include_directories(internal_energy
 	PUBLIC
 	$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
 )
-
+set_property(TARGET internal_energy PROPERTY CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON) #...is required...
+set(CMAKE_CXX_EXTENSIONS OFF) #...without compiler extensions like gnu++11
 set_target_properties(internal_energy PROPERTIES
 	POSITION_INDEPENDENT_CODE ${INTERNAL_POWER_POSITION_INDEPENDENT_CODE}
 )
@@ -39,7 +48,7 @@ set_target_properties(internal_energy PROPERTIES
 if (USE_NVML)
 	if(CUDAToolkit_FOUND)
 		target_compile_definitions(internal_energy PUBLIC HAVE_NVML)
-		target_link_libraries(internal_energy PRIVATE CUDA::nvml)
+		target_link_libraries(internal_energy PUBLIC CUDA::nvml)
 	else()
 		message(SEND_ERROR "NVML not found but requested")
 	endif()
@@ -47,16 +56,20 @@ endif()
 
 if (USE_NEC)
 	if(VEDA_FOUND)
-		target_compile_definitions(internal_energy PUBLIC HAVE_NVML)
-		target_link_libraries(internal_energy PRIVATE VEDA::veda)
+        target_compile_definitions(internal_energy PUBLIC HAVE_NEC)
+	target_link_libraries(internal_energy PUBLIC VEDA::veda)
 	else()
-		message(SEND_ERROR "NVML not found but requested")
+		message(SEND_ERROR "VEDA not found but requested")
 	endif()
 endif()
 		
 
-add_executable(amd_test examples/amd_test.cpp)
-target_link_libraries(amd_test PRIVATE internal_energy)
+
+add_executable(hwmon_test examples/hwmon_test.cpp)
+target_link_libraries(hwmon_test PRIVATE internal_energy)
+set_property(TARGET hwmon_test PROPERTY CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON) #...is required...
+set(CMAKE_CXX_EXTENSIONS OFF) #...without compiler extensions like gnu++11
 
 install(
 	TARGETS

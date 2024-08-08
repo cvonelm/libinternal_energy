@@ -1,90 +1,98 @@
 #pragma once
 
+#include <internal_energy/event.hpp>
+#include <internal_energy/topology.hpp>
+
+#include <perf-cpp/perf_event_instance.hpp>
+
 #include <chrono>
+#include <iostream>
+#include <memory>
 #include <thread>
+#include <type_traits>
 
 namespace internal_energy
 {
-class Device
+
+class EnergyFromPowerInstance : public EventInstance
 {
+
 public:
-};
-
-class Energy
-{
-public:
-    Energy()
+    EnergyFromPowerInstance(std::unique_ptr<EventSource> src, std::unique_ptr<EventInstance>&& inst)
+    : EventInstance(std::move(src)), counter_(std::move(inst))
     {
+        main_thread = std::thread(&EnergyFromPowerInstance::main_loop, this);
     }
-    double get_total_energy()
+    ~EnergyFromPowerInstance()
     {
-        return energy_;
-    }
-
-    virtual void start() = 0;
-    virtual void end() = 0;
-
-protected:
-    double energy_;
-};
-
-template <class EnergyCounterT>
-class EnergyFromEnergyCounter : public Energy
-{
-public:
-    EnergyFromEnergyCounter(EnergyCounterT&& counter) : energy_counter_(std::move(counter))
-    {
-    }
-    void start() override
-    {
-        start_ = energy_counter_.template read<double>();
-    }
-
-    void end() override
-    {
-        energy_ = energy_counter_.template read<double>() - start_;
+        stop_ = true;
+        main_thread.join();
     }
 
 private:
-    EnergyCounterT energy_counter_;
-    double start_;
-};
-
-template <class PowerCounterT>
-class EnergyFromPowerCounter : public Energy
-{
-public:
-    EnergyFromPowerCounter(PowerCounterT power_counter) : power_counter_(power_counter)
-    {
-    }
-    void start() override
-    {
-        main_thread = t1(&EnergyFromPowerCounter::main_loop, this);
-    }
-    void end() override
-    {
-        stop_ = true;
-    }
-
     void main_loop()
     {
         auto start = std::chrono::high_resolution_clock::now();
         while (!stop_)
         {
-            std::this_thread::sleep_for(power_counter_.get_readout_interval());
+            std::this_thread::sleep_for(counter_->get_readout_interval());
             auto end = std::chrono::high_resolution_clock::now();
             std::chrono::seconds interval =
                 std::chrono::duration_cast<std::chrono::seconds>(end - start);
 
-            energy_ += power_counter_.template read<double>() / interval.count();
+            energy_ += counter_->read() / interval.count();
             start = end;
         }
     }
 
+    double read() override
+    {
+        return energy_;
+    }
+
 private:
-    PowerCounterT power_counter_;
+    std::unique_ptr<EventInstance> counter_;
+    double energy_ = 0;
     std::thread main_thread;
     bool stop_ = false;
 };
+
+class EnergyFromPowerSource : public EventSource
+{
+public:
+    EnergyFromPowerSource(std::unique_ptr<EventSource>&& base_source)
+    : base_source_(std::move(base_source))
+    {
+    }
+
+    std::unique_ptr<EventInstance> open(location_t location)
+    {
+        auto base = base_source_->open(location);
+        if (!base)
+        {
+            return std::unique_ptr<EventInstance>();
+        }
+        return std::make_unique<EnergyFromPowerInstance>(clone(), std::move(base));
+    }
+    std::unique_ptr<EventSource> clone()
+    {
+        return std::make_unique<EnergyFromPowerSource>(base_source_->clone());
+    }
+
+    std::string name() const
+    {
+        return "Energy derived from " + base_source_->name();
+    }
+
+    Subsystem get_subsystem() const override
+    {
+        return base_source_->get_subsystem();
+    }
+
+private:
+    std::unique_ptr<EventSource> base_source_;
+};
+
+std::vector<std::unique_ptr<EventSource>> get_energy_counters();
 
 } // namespace internal_energy

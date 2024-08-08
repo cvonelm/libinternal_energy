@@ -1,5 +1,9 @@
 //  SPDX-FileCopyrightText: 2024 Technische Universität Dresden
 //  SPDX-License-Identifier: MIT
+#pragma once
+
+#include <internal_energy/topology.hpp>
+#include <internal_energy/util.hpp>
 
 #include <fmt/core.h>
 #include <veda/api.h>
@@ -7,174 +11,65 @@
 namespace internal_energy
 {
 
-enum class SensorType
+namespace nec
 {
-    INVALID,
-    POWER,
-    CURRENT,
-    CURRENT_EDGE,
-    VOLTAGE,
-    VOLTAGE_EDGE,
-    TEMPERATURE
-};
-
-class NecSensor
+class EventInstance : public internal_energy::EventInstance
 {
 public:
-    NecSensor() : type_(SensorType::INVALID), id_(0)
+    EventInstance(NecDevice dev, std::unique_ptr<internal_energy::EventSource>&& src)
+    : internal_energy::EventInstance(std::move(src)), dev_(dev)
     {
-    }
-    NecSensor(SensorType type, int id, int core = 0) : type_(type), id_(id), core_(core)
-    {
-        vedaDeviceGet(&dev_, id);
-    }
-    std::string name() const
-    {
-        if (type_ == SensorType::POWER)
-        {
-            return fmt::format("ve{}::power", id_);
-        }
-        else if (type_ == SensorType::CURRENT)
-        {
-            return fmt::format("ve{}::current", id_);
-        }
-        else if (type_ == SensorType::CURRENT_EDGE)
-        {
-            return fmt::format("ve{}::current_edge", id_);
-        }
-        else if (type_ == SensorType::VOLTAGE)
-        {
-            return fmt::format("ve{}::voltage", id_);
-        }
-        else if (type_ == SensorType::VOLTAGE_EDGE)
-        {
-            return fmt::format("ve{}::voltage_edge", id_);
-        }
-        else if (type_ == SensorType::TEMPERATURE)
-        {
-            return fmt::format("ve{}::temp::core{}", id_, core_);
-        }
-        else
-        {
-            throw std::runtime_error("Invalid sensor!");
-        }
-    }
-    std::string unit() const
-    {
-        if (type_ == SensorType::POWER)
-        {
-            return "Watt";
-        }
-        else if (type_ == SensorType::CURRENT)
-        {
-            return "Ampere";
-        }
-        else if (type_ == SensorType::CURRENT_EDGE)
-        {
-            return "Ampere";
-        }
-        else if (type_ == SensorType::VOLTAGE)
-        {
-            return "Volt";
-        }
-        else if (type_ == SensorType::VOLTAGE_EDGE)
-        {
-            return "Volt";
-        }
-        else if (type_ == SensorType::TEMPERATURE)
-        {
-            return "Celsius";
-        }
-        else
-        {
-            throw std::runtime_error("Invalid sensor!");
-        }
-    }
-    std::string description() const
-    {
-        if (type_ == SensorType::POWER)
-        {
-            return fmt::format("Vector Engine {} Power Consumption", id_);
-        }
-        else if (type_ == SensorType::CURRENT)
-        {
-            return fmt::format("Vector Engine {} Current Draw", id_);
-        }
-        else if (type_ == SensorType::CURRENT_EDGE)
-        {
-            return fmt::format("Vector Engine {} Current Edge", id_);
-        }
-        else if (type_ == SensorType::VOLTAGE)
-        {
-            return fmt::format("Vector Engine {} Voltage", id_);
-        }
-        else if (type_ == SensorType::VOLTAGE_EDGE)
-        {
-            return fmt::format("Vector Engine {} Voltage Edge", id_);
-        }
-        else if (type_ == SensorType::TEMPERATURE)
-        {
-            return fmt::format("Vector Engine {} Core {} Temperature", id_, core_);
-        }
-        else
-        {
-            throw std::runtime_error("Invalid sensor!");
-        }
+        vedaInit(0);
     }
 
-    template <typename T>
-    T read() const;
-
-    template <>
-    double read() const
+    ~EventInstance()
+    {
+        vedaExit();
+    }
+    double read()
     {
         float value;
-
-        if (type_ == SensorType::POWER)
-        {
-            vedaDeviceGetPower(&value, dev_);
-            return value;
-        }
-        else if (type_ == SensorType::CURRENT)
-        {
-            vedaDeviceGetCurrent(&value, dev_);
-            return value;
-        }
-        else if (type_ == SensorType::CURRENT_EDGE)
-        {
-            vedaDeviceGetCurrentEdge(&value, dev_);
-            return value;
-        }
-        else if (type_ == SensorType::VOLTAGE)
-        {
-            vedaDeviceGetVoltage(&value, dev_);
-            return value;
-        }
-        else if (type_ == SensorType::VOLTAGE_EDGE)
-        {
-            vedaDeviceGetVoltageEdge(&value, dev_);
-            return value;
-        }
-        else if (type_ == SensorType::TEMPERATURE)
-        {
-            vedaDeviceGetTemp(&value, core_, dev_);
-            return value;
-        }
-        else
-        {
-            throw std::runtime_error("Invalid sensor!");
-        }
-    }
-
-    bool invalid() const
-    {
-        return type_ == SensorType::INVALID;
+        vedaDeviceGetPower(&value, dev_.as_device_t());
+        return value;
     }
 
 protected:
-    SensorType type_;
-    int id_;
-    int core_;
-    VEDAdevice dev_;
+    NecDevice dev_;
 };
+class EventSource : public internal_energy::EventSource
+{
+public:
+    EventSource()
+    {
+    }
+    std::unique_ptr<internal_energy::EventInstance> open(location_t location) override
+    {
+        std::unique_ptr<internal_energy::EventInstance> res;
+
+        std::visit(overloaded{ [&](NecDevice dev)
+                               { res = std::make_unique<nec::EventInstance>(dev, this->clone()); },
+                               [](auto arg) {} },
+                   location);
+        return res;
+    }
+    static std::vector<nec::EventSource> get_all_events()
+    {
+        return { nec::EventSource() };
+    }
+    Subsystem get_subsystem() const override
+    {
+        return Subsystem::NEC;
+    }
+
+    std::string name() const
+    {
+        return "NEC::power";
+    }
+    std::unique_ptr<internal_energy::EventSource> clone() override
+    {
+        return std::unique_ptr<nec::EventSource>();
+    }
+};
+
+} // namespace nec
 } // namespace internal_energy
