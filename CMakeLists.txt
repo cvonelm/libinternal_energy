@@ -71,7 +71,13 @@ set_property(TARGET hwmon_test PROPERTY CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON) #...is required...
 set(CMAKE_CXX_EXTENSIONS OFF) #...without compiler extensions like gnu++11
 
+install(DIRECTORY
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/internal_energy
+    DESTINATION include)
 install(
 	TARGETS
 	internal_energy
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
 )
