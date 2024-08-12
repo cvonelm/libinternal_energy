@@ -4,6 +4,10 @@ project (libinternal_energy VERSION 0.0.1)
 include(FeatureSummary)
 include(CMakeDependentOption)
 
+if (${INTERNAL_ENERGY_POSITION_INDEPENDENT_CODE})
+    set(PERF_CPP_POSITION_INDEPENDENT_CODE 1)
+endif()
+
 add_subdirectory(lib/perf-cpp)
 
 set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake;${CMAKE_MODULE_PATH}")
@@ -29,7 +33,7 @@ set(LIB_SRCS
 	src/energy.cpp
     src/hwmon/hwmon.cpp)
 
-add_library(internal_energy ${LIB_SRCS})
+add_library(internal_energy SHARED ${LIB_SRCS})
 
 target_link_libraries(internal_energy PUBLIC perf-cpp)
 target_link_libraries(internal_energy PUBLIC Threads::Threads)
@@ -42,8 +46,12 @@ set_property(TARGET internal_energy PROPERTY CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON) #...is required...
 set(CMAKE_CXX_EXTENSIONS OFF) #...without compiler extensions like gnu++11
 set_target_properties(internal_energy PROPERTIES
-	POSITION_INDEPENDENT_CODE ${INTERNAL_POWER_POSITION_INDEPENDENT_CODE}
+ POSITION_INDEPENDENT_CODE ${INTERNAL_ENERGY_POSITION_INDEPENDENT_CODE}
 )
+
+if (${INTERNAL_ENERGY_POSITION_INDEPENDENT_CODE})
+    set(PERF_CPP_POSITION_INDEPENDENT_CODE)
+endif()
 
 if (USE_NVML)
 	if(CUDAToolkit_FOUND)
