@@ -3,10 +3,15 @@ project (libinternal_energy VERSION 0.0.1)
 
 include(FeatureSummary)
 include(CMakeDependentOption)
+include(FindPackageHandleStandardArgs)
 
-if (${INTERNAL_ENERGY_POSITION_INDEPENDENT_CODE})
-    set(PERF_CPP_POSITION_INDEPENDENT_CODE 1)
+if(NOT INTERNAL_ENERGY_POSITION_INDEPENDENT_CODE)
+	set(INTERNAL_ENERGY_POSITION_INDEPENDENT_CODE OFF)
+    set(PERF_CPP_POSITION_INDEPENDENT_CODE OFF)
+else()
+set(PERF_CPP_POSITION_INDEPENDENT_CODE ON)
 endif()
+
 
 add_subdirectory(lib/perf-cpp)
 
@@ -16,15 +21,28 @@ find_package(VEDA)
 find_package(CUDAToolkit)
 find_package(Threads)
 
-if(NOT INTERNAL_POWER_POSITION_INDEPENDENT_CODE)
-	set(INTERNAL_POWER_POSITION_INDEPENDENT_CODE OFF)
+find_library(ROCM_SMI_LIBRARY NAMES rocm_smi64
+    HINTS "/opt/rocm/lib")
+find_path(ROCM_SMI_INCLUDE_DIR NAMES rocm_smi/rocm_smi.h
+    HINTS "/opt/rocm/include")
+
+find_package_handle_standard_args(ROCM_SMI REQUIRED_VARS ROCM_SMI_LIBRARY)
+
+
+if (ROCM_SMI_FOUND)
+    add_library(ROCM_SMI::ROCM_SMI UNKNOWN IMPORTED)
+    set_property(TARGET ROCM_SMI::ROCM_SMI PROPERTY IMPORTED_LOCATION ${ROCM_SMI_LIBRARY})
+    target_include_directories(ROCM_SMI::ROCM_SMI INTERFACE ${ROCM_SMI_INCLUDE_DIR})
 endif()
-option(INTERNAL_POWER_POSITION_INDEPENDENT_CODE "Whether to build libinternal_energy with position independent code" ${INTERNAL_POWER_POSITION_INDEPENDENT_CODE})
+
+option(INTERNAL_ENERGY_POSITION_INDEPENDENT_CODE "Whether to build libinternal_energy with position independent code" ${INTERNAL_ENERGY_POSITION_INDEPENDENT_CODE})
 
 CMAKE_DEPENDENT_OPTION(USE_NVML "Use nvml to retrieve Nvidia GPU energy values" ON "CUDAToolkit_FOUND" OFF)
 add_feature_info("USE_NVML" USE_NVML "Use nvml to retrieve Nvidia GPU energy values")
 CMAKE_DEPENDENT_OPTION(USE_NEC "Use libveda to retrieve NEC Vector Engine energy values" ON "VEDA_FOUND" OFF)
 add_feature_info("USE_NEC" USE_NEC "Use libveda to retrieve NEC Vector Engine energy values")
+CMAKE_DEPENDENT_OPTION(USE_ROCM_SMI "Use rocm-smi to retrive AMDGPU energy values" ON "ROCM_SMI_FOUND" OFF)
+add_feature_info("USE_ROCM_SMI" USE_ROCM_SMI "Use rocm-smi to retrieve AMDGPU energy values")
 
 
 set(LIB_SRCS
@@ -70,7 +88,16 @@ if (USE_NEC)
 		message(SEND_ERROR "VEDA not found but requested")
 	endif()
 endif()
-		
+
+
+if(USE_ROCM_SMI)
+    if(ROCM_SMI_FOUND)
+        target_compile_definitions(internal_energy PUBLIC HAVE_ROCM_SMI)
+        target_link_libraries(internal_energy PUBLIC ROCM_SMI::ROCM_SMI)
+    else()
+        message(SEND_ERROR "ROCM_SMI not found but requested")
+    endif()
+endif()
 
 
 add_executable(hwmon_test examples/hwmon_test.cpp)

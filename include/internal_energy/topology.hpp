@@ -15,6 +15,10 @@
 #include <nvml.h>
 #endif
 
+#ifdef HAVE_ROCM_SMI
+#include <rocm_smi/rocm_smi.h>
+#endif
+
 namespace internal_energy
 {
 
@@ -24,7 +28,8 @@ enum class Subsystem
     PERF,
     HWMON,
     CUDA,
-    NEC
+    NEC,
+    ROCM
 };
 
 class Location
@@ -103,6 +108,28 @@ private:
 std::vector<CudaDevice> get_cuda_devices();
 #else
 class CudaDevice
+{
+};
+#endif
+
+#ifdef HAVE_ROCM_SMI
+class RocmDevice
+{
+public:
+    RocmDevice(uint32_t idx) : device_index_(idx)
+    {
+    }
+    uint32_t as_device_t() const
+    {
+        return device_index_;
+    }
+
+private:
+    uint32_t device_index_;
+};
+std::vector<RocmDevice> get_rocm_devices();
+#else
+class RocmDevice
 {
 };
 #endif

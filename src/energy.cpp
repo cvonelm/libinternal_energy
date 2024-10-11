@@ -9,6 +9,10 @@
 #include <internal_energy/nvml/nvml.hpp>
 #endif
 
+#ifdef HAVE_ROCM_SMI
+#include <internal_energy/rocm_smi/rocm_smi.hpp>
+#endif
+
 #include <perf-cpp/topology.hpp>
 namespace internal_energy
 {
@@ -38,6 +42,15 @@ std::vector<std::unique_ptr<EventSource>> get_energy_counters()
     {
         res.emplace_back(
             std::make_unique<EnergyFromPowerSource>(std::make_unique<nec::EventSource>(nec_event)));
+    }
+#endif
+
+#ifdef HAVE_ROCM_SMI
+    auto rocm_events = rocm::EventSource::get_all_events();
+
+    for (auto rocm_event : rocm_events)
+    {
+        res.emplace_back(std::make_unique<rocm::EventSource>(rocm_event));
     }
 #endif
     auto hwmon_events = hwmon::EventSource::get_all_events();

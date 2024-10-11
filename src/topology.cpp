@@ -68,4 +68,20 @@ std::vector<CudaDevice> get_cuda_devices()
     return res;
 }
 #endif
+
+#ifdef HAVE_ROCM_SMI
+std::vector<RocmDevice> get_rocm_devices()
+{
+    std::vector<RocmDevice> res;
+    rsmi_init(0);
+    uint32_t num_devices;
+
+    rsmi_num_monitor_devices(&num_devices);
+    for (int i = 0; i < num_devices; i++)
+    {
+        res.emplace_back(RocmDevice(i));
+    }
+    return res;
+}
+#endif
 } // namespace internal_energy
