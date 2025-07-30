@@ -5,21 +5,14 @@ include(FeatureSummary)
 include(CMakeDependentOption)
 include(FindPackageHandleStandardArgs)
 
-if(NOT INTERNAL_ENERGY_POSITION_INDEPENDENT_CODE)
-	set(INTERNAL_ENERGY_POSITION_INDEPENDENT_CODE OFF)
-    set(PERF_CPP_POSITION_INDEPENDENT_CODE OFF)
-else()
-set(PERF_CPP_POSITION_INDEPENDENT_CODE ON)
-endif()
-
-
 add_subdirectory(lib/perf-cpp)
-
 set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake;${CMAKE_MODULE_PATH}")
 
 find_package(VEDA)
 find_package(CUDAToolkit)
 find_package(Threads)
+find_package(PkgConfig)
+
 
 find_library(ROCM_SMI_LIBRARY NAMES rocm_smi64
     HINTS "/opt/rocm/lib")
@@ -35,7 +28,7 @@ if (ROCM_SMI_FOUND)
     target_include_directories(ROCM_SMI::ROCM_SMI INTERFACE ${ROCM_SMI_INCLUDE_DIR})
 endif()
 
-option(INTERNAL_ENERGY_POSITION_INDEPENDENT_CODE "Whether to build libinternal_energy with position independent code" ${INTERNAL_ENERGY_POSITION_INDEPENDENT_CODE})
+option(BUILD_SHARED_LIBS "Whether to build shared libraries" ON)
 
 CMAKE_DEPENDENT_OPTION(USE_NVML "Use nvml to retrieve Nvidia GPU energy values" ON "CUDAToolkit_FOUND" OFF)
 add_feature_info("USE_NVML" USE_NVML "Use nvml to retrieve Nvidia GPU energy values")
@@ -46,15 +39,34 @@ add_feature_info("USE_ROCM_SMI" USE_ROCM_SMI "Use rocm-smi to retrieve AMDGPU en
 
 
 set(LIB_SRCS
-    src/perf.cpp
     src/topology.cpp
-	src/energy.cpp
-    src/hwmon/hwmon.cpp)
+    src/metric.cpp
+    src/perf/metric.cpp
+    src/msr/metric.cpp
+    src/msr/amd/metric.cpp
+    src/msr/intel/metric.cpp
+    src/operators/level_integrator.cpp
+    src/operators/combinator.cpp)
 
-add_library(internal_energy SHARED ${LIB_SRCS})
+add_library(internal_energy ${LIB_SRCS})
 
 target_link_libraries(internal_energy PUBLIC perf-cpp)
 target_link_libraries(internal_energy PUBLIC Threads::Threads)
+
+if(PKG_CONFIG_FOUND)
+    pkg_check_modules(fmt
+        IMPORTED_TARGET
+        fmt)
+    if(fmt_FOUND)
+        target_link_libraries(internal_energy PUBLIC PkgConfig::fmt)
+    else()
+        target_link_libraries(internal_energy PUBLIC fmt::fmt)
+    endif()
+else()
+    target_link_libraries(internal_energy PUBLIC fmt::fmt)
+endif()
+
+
 target_link_libraries(internal_energy PUBLIC stdc++fs)
 target_include_directories(internal_energy
 	PUBLIC
@@ -63,9 +75,6 @@ target_include_directories(internal_energy
 set_property(TARGET internal_energy PROPERTY CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON) #...is required...
 set(CMAKE_CXX_EXTENSIONS OFF) #...without compiler extensions like gnu++11
-set_target_properties(internal_energy PROPERTIES
- POSITION_INDEPENDENT_CODE ${INTERNAL_ENERGY_POSITION_INDEPENDENT_CODE}
-)
 
 if (${INTERNAL_ENERGY_POSITION_INDEPENDENT_CODE})
     set(PERF_CPP_POSITION_INDEPENDENT_CODE)
@@ -75,6 +84,7 @@ if (USE_NVML)
 	if(CUDAToolkit_FOUND)
 		target_compile_definitions(internal_energy PUBLIC HAVE_NVML)
 		target_link_libraries(internal_energy PUBLIC CUDA::nvml)
+        target_sources(internal_energy  PRIVATE src/nvml/metric.cpp)
 	else()
 		message(SEND_ERROR "NVML not found but requested")
 	endif()
@@ -94,15 +104,16 @@ if(USE_ROCM_SMI)
     if(ROCM_SMI_FOUND)
         target_compile_definitions(internal_energy PUBLIC HAVE_ROCM_SMI)
         target_link_libraries(internal_energy PUBLIC ROCM_SMI::ROCM_SMI)
+        target_sources(internal_energy  PRIVATE src/rocm_smi/metric.cpp)
     else()
         message(SEND_ERROR "ROCM_SMI not found but requested")
     endif()
 endif()
 
 
-add_executable(hwmon_test examples/hwmon_test.cpp)
-target_link_libraries(hwmon_test PRIVATE internal_energy)
-set_property(TARGET hwmon_test PROPERTY CXX_STANDARD 17)
+add_executable(int_energy examples/int_energy.cpp)
+target_link_libraries(int_energy PRIVATE internal_energy)
+set_property(TARGET int_energy PROPERTY CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON) #...is required...
 set(CMAKE_CXX_EXTENSIONS OFF) #...without compiler extensions like gnu++11
 

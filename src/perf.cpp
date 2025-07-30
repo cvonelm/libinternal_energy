@@ -1,4 +1,4 @@
-#include <internal_energy/perf.hpp>
+#include <internal_energy/perf/metric.hpp>
 
 namespace internal_energy
 {
