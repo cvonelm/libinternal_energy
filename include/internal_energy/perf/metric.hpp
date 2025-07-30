@@ -88,7 +88,7 @@ private:
     std::unique_ptr<perf_cpp::EventGuard> guard_;
 };
 
-std::vector<perf::MetricSource> get_all_metrics();
+std::set<perf::MetricSource> get_all_metrics();
 
 } // namespace perf
 } // namespace internal_energy

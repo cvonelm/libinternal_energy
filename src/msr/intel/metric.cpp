@@ -16,18 +16,18 @@ std::unique_ptr<internal_energy::MetricInstance> IntelCoreMetricSource::open() c
 {
     return std::make_unique<IntelCoreMetricInstance>(this);
 }
-std::vector<std::unique_ptr<msr::MetricSource>> get_all_metrics()
+std::set<std::unique_ptr<msr::MetricSource>> get_all_metrics()
 {
-    std::vector<std::unique_ptr<msr::MetricSource>> res;
+    std::set<std::unique_ptr<msr::MetricSource>> res;
     for (auto package : perf_cpp::Topology::instance().packages())
     {
-        res.emplace_back(std::make_unique<IntelPkgMetricSource>(Location::from<Package>(
+        res.emplace(std::make_unique<IntelPkgMetricSource>(Location::from<Package>(
             Package(perf_cpp::Topology::instance().measuring_cpu_for_package(package).as_int()))));
     }
 
     for (auto core : perf_cpp::Topology::instance().cores())
     {
-        res.emplace_back(
+        res.emplace(
             std::make_unique<IntelCoreMetricSource>(Location::from<Core>(Core(core.as_int()))));
     }
 

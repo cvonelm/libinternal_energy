@@ -38,6 +38,25 @@ public:
         return location_;
     }
 
+    friend bool operator<(const MetricSource& lhs, const MetricSource& rhs)
+    {
+        if (lhs.get_subsystem() == rhs.get_subsystem())
+        {
+            if (lhs.location_ == rhs.location_)
+            {
+                return lhs.name() < rhs.name();
+            }
+            return lhs.location_ < rhs.location_;
+        }
+        return lhs.get_subsystem() < rhs.get_subsystem();
+    }
+
+    friend bool operator==(const MetricSource& lhs, const MetricSource& rhs)
+    {
+        return lhs.get_subsystem() == rhs.get_subsystem() && lhs.location_ == rhs.location_ &&
+               lhs.name() == rhs.name();
+    }
+
 protected:
     Location location_;
 };

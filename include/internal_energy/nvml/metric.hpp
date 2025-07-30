@@ -60,7 +60,7 @@ public:
     }
 };
 
-std::vector<cuda::MetricSource> get_all_metrics();
+std::set<cuda::MetricSource> get_all_metrics();
 
 } // namespace cuda
 } // namespace internal_energy

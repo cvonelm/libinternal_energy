@@ -47,6 +47,11 @@ public:
         return lhs.device_index_ == rhs.device_index_;
     }
 
+    friend bool operator<(const AMDDevice& lhs, const AMDDevice& rhs)
+    {
+        return lhs.device_index_ < rhs.device_index_;
+    }
+
 private:
     uint32_t device_index_;
 };

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "internal_energy/operators/combinator.hpp"
+#include <fmt/ranges.h>
 #include <internal_energy/metric.hpp>
 #include <internal_energy/msr/metric.hpp>
 #include <internal_energy/operators/level_integrator.hpp>
@@ -16,15 +17,27 @@
 #endif
 
 #include <memory>
-#include <ostream>
 #include <stdexcept>
 
 namespace internal_energy
 {
-class MetricSet
+
+class MetricProvider
 {
 public:
-    MetricSet()
+    static const MetricProvider& instance()
+    {
+        static MetricProvider m;
+        return m;
+    }
+
+    std::set<const MetricSource*> get_all_metrics() const
+    {
+        return metrics_;
+    }
+
+private:
+    MetricProvider()
     {
         perf_sources_ = perf::get_all_metrics();
 
@@ -35,35 +48,52 @@ public:
 
         for (auto& nvidia_source : nvidia_sources_)
         {
-            metrics_.emplace_back(&nvidia_source);
+            metrics_.emplace(&nvidia_source);
         }
 #endif
 #ifdef HAVE_ROCM_SMI
         amd_sources_ = rocm::get_all_metrics();
         for (auto& amd_source : amd_sources_)
         {
-            metrics_.emplace_back(&amd_source);
+            metrics_.emplace(&amd_source);
         }
 #endif
         for (auto& perf_source : perf_sources_)
         {
-            metrics_.emplace_back(&perf_source);
+            metrics_.emplace(&perf_source);
         }
 
         for (auto& msr_metric : msr_sources_)
         {
-            metrics_.emplace_back(msr_metric.get());
+            metrics_.emplace(msr_metric.get());
         }
+    }
+    std::set<perf::MetricSource> perf_sources_;
+#ifdef HAVE_NVML
+    std::set<cuda::MetricSource> nvidia_sources_;
+#endif
+#ifdef HAVE_ROCM_SMI
+    std::set<rocm::MetricSource> amd_sources_;
+#endif
+    std::set<std::unique_ptr<msr::MetricSource>> msr_sources_;
+    std::set<const MetricSource*> metrics_;
+};
+class MetricSet
+{
+public:
+    MetricSet()
+    {
+        metrics_ = MetricProvider::instance().get_all_metrics();
     }
     void filter_location(Location l)
     {
-        std::vector<const MetricSource*> res;
+        std::set<const MetricSource*> res;
 
         for (const auto* source : metrics_)
         {
             if (source->get_location() == l)
             {
-                res.emplace_back(source);
+                res.emplace(source);
             }
         }
         metrics_ = res;
@@ -71,12 +101,12 @@ public:
 
     void filter_unit(Unit unit)
     {
-        std::vector<const MetricSource*> res;
+        std::set<const MetricSource*> res;
         for (const auto* source : metrics_)
         {
             if (source->unit() == unit)
             {
-                res.emplace_back(source);
+                res.emplace(source);
             }
         }
         metrics_ = res;
@@ -88,13 +118,13 @@ public:
         {
             return;
         }
-        std::vector<const MetricSource*> res;
+        std::set<const MetricSource*> res;
 
         for (const auto* source : metrics_)
         {
             if (source->get_subsystem() == sub)
             {
-                res.emplace_back(source);
+                res.emplace(source);
             }
         }
         metrics_ = res;
@@ -106,19 +136,19 @@ public:
         {
             return;
         }
-        std::vector<const MetricSource*> res;
+        std::set<const MetricSource*> res;
 
         for (const auto* source : metrics_)
         {
             if (source->name() == name)
             {
-                res.emplace_back(source);
+                res.emplace(source);
             }
         }
         metrics_ = res;
     }
 
-    const std::vector<const MetricSource*> metrics()
+    const std::set<const MetricSource*> metrics()
     {
         return metrics_;
     }
@@ -134,39 +164,26 @@ public:
 
     void convert_to_energy()
     {
-        std::vector<const MetricSource*> res;
+        std::set<const MetricSource*> res;
 
-        for (const auto* metric : metrics_)
-        {
-            if (metric->unit() == Unit::ENERGY)
-            {
-                res.emplace_back(metric);
-            }
-
-            else
-            {
-                integrators_.emplace_back(LevelIntegratorSource(metric));
-                res.emplace_back(&integrators_.back());
-            }
-        }
         metrics_ = res;
     }
 
-    std::vector<std::unique_ptr<MetricInstance>> open()
+    std::set<std::unique_ptr<MetricInstance>> open()
     {
-        std::vector<std::unique_ptr<MetricInstance>> res;
+        std::set<std::unique_ptr<MetricInstance>> res;
 
         for (const auto* metric : metrics_)
         {
-            res.emplace_back(metric->open());
+            res.emplace(metric->open());
         }
         return res;
     }
 
     void deduplicate()
     {
-        std::vector<const MetricSource*> res = metrics_;
-        std::vector<const MetricSource*> delete_list;
+        std::set<const MetricSource*> res = metrics_;
+        std::set<const MetricSource*> delete_list;
         for (const auto* source : res)
         {
             for (const auto* other_source : res)
@@ -178,8 +195,6 @@ public:
 
                 if (source->get_location().contains(other_source->get_location()))
                 {
-                    std::cout << "THIS: " << source->get_location().str() << std::endl;
-                    std::cout << "THAT: " << other_source->get_location().str() << std::endl;
                     if (source->get_location() == source->get_location())
                     {
                         /*
@@ -191,7 +206,7 @@ public:
                         if (source->get_subsystem() == Subsystem::PERF &&
                             other_source->get_subsystem() == Subsystem::MSR)
                         {
-                            delete_list.emplace_back(other_source);
+                            delete_list.emplace(other_source);
                         }
                         else if (source->get_subsystem() == Subsystem::MSR &&
                                  other_source->get_subsystem() == Subsystem::PERF)
@@ -199,34 +214,40 @@ public:
                         }
                         else
                         {
-                            delete_list.emplace_back(other_source);
+                            delete_list.emplace(other_source);
                         }
                     }
                     else
                     {
-                        delete_list.emplace_back(other_source);
+                        delete_list.emplace(other_source);
                     }
                 }
             }
         }
         for (auto* del : delete_list)
         {
-            res.erase(std::remove(res.begin(), res.end(), del), res.end());
+            res.erase(del);
         }
         metrics_ = res;
     }
 
+    friend MetricSet operator+(const MetricSet& lhs, const MetricSet& rhs)
+    {
+        MetricSet new_set = MetricSet();
+
+        std::set<const MetricSource*> res;
+        for (const auto* metric : lhs.metrics_)
+        {
+            if (rhs.metrics_.count(metric))
+            {
+                res.emplace(metric);
+            }
+        }
+        return new_set;
+    }
+
 private:
-    std::vector<perf::MetricSource> perf_sources_;
-#ifdef HAVE_NVML
-    std::vector<cuda::MetricSource> nvidia_sources_;
-#endif
-#ifdef HAVE_ROCM_SMI
-    std::vector<rocm::MetricSource> amd_sources_;
-#endif
-    std::vector<std::unique_ptr<msr::MetricSource>> msr_sources_;
-    std::vector<LevelIntegratorSource> integrators_;
-    std::vector<const MetricSource*> metrics_;
+    std::set<const MetricSource*> metrics_;
 };
 
 } // namespace internal_energy

@@ -108,7 +108,7 @@ protected:
     int fd_;
 };
 
-std::vector<std::unique_ptr<msr::MetricSource>> get_all_metrics();
+std::set<std::unique_ptr<msr::MetricSource>> get_all_metrics();
 } // namespace msr
 
 } // namespace internal_energy

@@ -73,6 +73,11 @@ public:
         return lhs.cpuid_ == rhs.cpuid_;
     }
 
+    friend bool operator<(const Cpu& lhs, const Cpu& rhs)
+    {
+        return lhs.cpuid_ < rhs.cpuid_;
+    }
+
 private:
     int cpuid_;
 };
@@ -105,6 +110,11 @@ public:
     friend bool operator==(const Package& lhs, const Package& rhs)
     {
         return lhs.package_id_ == rhs.package_id_;
+    }
+
+    friend bool operator<(const Package& lhs, const Package& rhs)
+    {
+        return lhs.package_id_ < rhs.package_id_;
     }
 
     perf_cpp::Package as_perf_package()
@@ -144,6 +154,10 @@ public:
         return lhs.core_id_ == rhs.core_id_;
     }
 
+    friend bool operator<(const Core& lhs, const Core& rhs)
+    {
+        return lhs.core_id_ < rhs.core_id_;
+    }
     perf_cpp::Core as_perf_core()
     {
         return perf_cpp::Core(core_id_);
@@ -302,6 +316,7 @@ public:
     static Location from_str(std::string location);
 
     friend bool operator==(const Location& lhs, const Location& rhs);
+    friend bool operator<(const Location& lhs, const Location& rhs);
     friend bool operator!=(const Location& lhs, const Location& rhs)
     {
         return !(lhs == rhs);

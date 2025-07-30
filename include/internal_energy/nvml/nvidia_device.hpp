@@ -45,6 +45,10 @@ public:
     {
         return lhs.dev_ == rhs.dev_;
     }
+    friend bool operator<(const NVidiaDevice& lhs, const NVidiaDevice& rhs)
+    {
+        return lhs.dev_ < rhs.dev_;
+    }
 
 private:
     int dev_;

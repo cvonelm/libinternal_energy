@@ -13,8 +13,8 @@ namespace internal_energy
 class CombinatorSource : public MetricSource
 {
 public:
-    CombinatorSource(std::vector<const MetricSource*> sources)
-    : MetricSource(sources[0]->get_location()), sources_(sources)
+    CombinatorSource(std::set<const MetricSource*> sources)
+    : MetricSource((*sources.begin())->get_location()), sources_(sources)
     {
         for (auto* source : sources)
         {
@@ -37,14 +37,14 @@ public:
             throw std::runtime_error("Must combine at least one Source!");
         }
 
-        Unit u = sources[0]->unit();
+        Unit u = (*sources.begin())->unit();
 
         for (auto* source : sources)
         {
             if (source->unit() != u)
             {
                 throw std::runtime_error(fmt::format("Cannot combine {} and {}, different units!",
-                                                     sources[0]->name(), source->name()));
+                                                     (*sources.begin())->name(), source->name()));
             }
         }
         unit_ = u;
@@ -59,11 +59,11 @@ public:
 
     std::string name() const override
     {
-        std::vector<std::string> names;
+        std::set<std::string> names;
 
         for (auto* source : sources_)
         {
-            names.emplace_back(source->name());
+            names.emplace(source->name());
         }
         return fmt::format("COMBINE_OF::({})", fmt::join(names, ", "));
     }
@@ -78,7 +78,7 @@ public:
         return Subsystem::ANY;
     }
 
-    std::vector<const MetricSource*> sources_;
+    std::set<const MetricSource*> sources_;
     Unit unit_;
 };
 
@@ -90,7 +90,7 @@ public:
     {
         for (auto* counter : reinterpret_cast<const CombinatorSource*>(source_)->sources_)
         {
-            counters_.emplace_back(counter->open());
+            counters_.emplace(counter->open());
         }
     }
 
@@ -107,7 +107,7 @@ private:
     }
 
 private:
-    std::vector<std::unique_ptr<MetricInstance>> counters_;
+    std::set<std::unique_ptr<MetricInstance>> counters_;
 };
 
 } // namespace internal_energy

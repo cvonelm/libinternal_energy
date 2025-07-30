@@ -26,13 +26,6 @@ sef.filter_subsystem(Subsystem s)
 set.filter_name(std::string name)
 ```
 
-The following modifiers exist:
-```cpp
-// If a metric already has Unit::ENERGY, do nothing.
-// If a metric is of Unit::Power, wrap it in a LevelIntegrator integration component
-set.convert_to_energy()
-```
-
 ```cpp
 // A metric set can contain duplicate Locations, e.g. both PERF and MSR and Core(0)
 // energy metrics, so that adding all the energy values from a MetricSet is not sound.
@@ -141,10 +134,3 @@ double instance.read()
 // Returns the underlying metric source
 double const MetricSource *instance.metric_source()
 ```
-
-## Lifetimes
-
-`MetricSource` are stored directly in the `MetricSet`, so their lifetime is bound to the MetricSet.
-
-All MetricSource references and MetricInstances created from the Metrics in a MetricSet are only valid as long as the MetricSet exists
-

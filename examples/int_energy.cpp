@@ -59,7 +59,6 @@ int main(int argc, char** argv)
         set.filter_location(l);
         set.filter_name(name);
 
-        set.deduplicate();
         if (set.metrics().size() == 0)
         {
             std::cerr << "No metric matches: " << argv[2] << "!" << std::endl;

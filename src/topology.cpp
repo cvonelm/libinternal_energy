@@ -233,6 +233,49 @@ bool Package::contains(Location l) const
     }
     return false;
 }
+bool operator<(const Location& lhs, const Location& rhs)
+{
+    if (lhs.tag != rhs.tag)
+    {
+        return lhs.tag < rhs.tag;
+    }
+    if (lhs.tag == rhs.tag)
+    {
+        switch (lhs.tag)
+        {
+        case DeviceType::CPU:
+            return lhs.cpu_ < rhs.cpu_;
+        case DeviceType::CORE:
+            return lhs.core_ < rhs.core_;
+        case DeviceType::PACKAGE:
+            return lhs.package_ < rhs.package_;
+#ifdef HAVE_NEC
+        case DeviceType::NEC_DEVICE:
+            return lhs.nec_device_ < rhs.nec_device_;
+#endif
+#ifdef HAVE_NVML
+        case DeviceType::NVIDIA_DEVICE:
+            return lhs.nvidia_device_ < rhs.nvidia_device_;
+#endif
+#ifdef HAVE_ROCM_SMI
+        case DeviceType::AMD_DEVICE:
+            return lhs.amd_device_ < rhs.amd_device_;
+#endif
+        case DeviceType::CPU_ANY:
+        case DeviceType::CORE_ANY:
+        case DeviceType::LOCATION_ANY:
+        case DeviceType::PACKAGE_ANY:
+#ifdef HAVE_NVML
+        case DeviceType::NVIDIA_DEVICE_ANY:
+#endif
+#ifdef HAVE_ROCM_SMI
+        case DeviceType::AMD_DEVICE_ANY:
+#endif
+            return false;
+        }
+    }
+    return false;
+}
 bool operator==(const Location& lhs, const Location& rhs)
 {
     if (lhs.is<LocationAny>() || rhs.is<LocationAny>())

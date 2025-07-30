@@ -1,13 +1,14 @@
-#include "internal_energy/msr/cpuinfo.hpp"
 #include <internal_energy/msr/amd/metric.hpp>
+#include <internal_energy/msr/cpuinfo.hpp>
 #include <internal_energy/msr/intel/metric.hpp>
 #include <internal_energy/msr/metric.hpp>
+
 namespace internal_energy
 {
 namespace msr
 {
 
-std::vector<std::unique_ptr<msr::MetricSource>> get_all_metrics()
+std::set<std::unique_ptr<msr::MetricSource>> get_all_metrics()
 {
     if (open("/dev/cpu/0/msr", O_RDONLY) == -1)
     {

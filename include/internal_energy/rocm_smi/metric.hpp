@@ -62,6 +62,6 @@ public:
     }
 };
 
-std::vector<rocm::MetricSource> get_all_metrics();
+std::set<rocm::MetricSource> get_all_metrics();
 } // namespace rocm
 } // namespace internal_energy

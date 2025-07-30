@@ -10,13 +10,13 @@ std::unique_ptr<internal_energy::MetricInstance> MetricSource::open() const
     return std::make_unique<rocm::MetricInstance>(this);
 }
 
-std::vector<rocm::MetricSource> get_all_metrics()
+std::set<rocm::MetricSource> get_all_metrics()
 {
-    std::vector<MetricSource> sources_;
+    std::set<MetricSource> sources_;
 
     for (auto& device : AMDDevice::get_all_devices())
     {
-        sources_.emplace_back(rocm::MetricSource(Location::from<AMDDevice>(device)));
+        sources_.emplace(rocm::MetricSource(Location::from<AMDDevice>(device)));
     }
     return sources_;
 }

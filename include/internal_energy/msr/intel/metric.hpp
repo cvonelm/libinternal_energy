@@ -96,7 +96,7 @@ private:
     uint64_t last_reading_ = 0;
 };
 
-std::vector<std::unique_ptr<msr::MetricSource>> get_all_metrics();
+std::set<std::unique_ptr<msr::MetricSource>> get_all_metrics();
 } // namespace intel
 
 } // namespace msr

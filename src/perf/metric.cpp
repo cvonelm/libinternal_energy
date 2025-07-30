@@ -9,9 +9,9 @@ std::unique_ptr<internal_energy::MetricInstance> perf::MetricSource::open() cons
     return std::make_unique<perf::MetricInstance>(this);
 }
 
-std::vector<perf::MetricSource> get_all_metrics()
+std::set<perf::MetricSource> get_all_metrics()
 {
-    std::vector<perf::MetricSource> res;
+    std::set<perf::MetricSource> res;
 
     try
     {
@@ -21,7 +21,7 @@ std::vector<perf::MetricSource> get_all_metrics()
         for (auto cpu : ev.cpus())
         {
             Package pkg(Package(perf_cpp::Topology::instance().package_of(cpu).as_int()));
-            res.emplace_back(MetricSource(ev, Location::from(pkg)));
+            res.emplace(MetricSource(ev, Location::from(pkg)));
             package_id++;
         }
     }
@@ -36,7 +36,7 @@ std::vector<perf::MetricSource> get_all_metrics()
         for (auto cpu : ev.cpus())
         {
             Core core(Core(perf_cpp::Topology::instance().core_of(cpu).as_int()));
-            res.emplace_back(MetricSource(ev, Location::from(core)));
+            res.emplace(MetricSource(ev, Location::from(core)));
         }
     }
     catch (perf_cpp::EventAttr::InvalidEvent& e)
