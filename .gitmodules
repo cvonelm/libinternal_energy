@@ -1,6 +1,3 @@
 [submodule "lib/perf-cpp"]
 	path = lib/perf-cpp
 	url = https://github.com/cvonelm/perf-cpp
-[submodule "lib/libintelpmt"]
-	path = lib/libintelpmt
-	url = https://github.com/cvonelm/libintelpmt
